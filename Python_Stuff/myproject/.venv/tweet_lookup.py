@@ -1,15 +1,24 @@
 import requests
 import json
+import datetime
+import pytz
+from datetime import timedelta, timezone
+from translate import Translator
 
 f = open('keys.json')
 file_data = json.load(f)
-# To set your environment variables in your terminal run the following line:
-# export 'BEARER_TOKEN'='<your_bearer_token>'
 bearer_token = file_data['bearer_token']
+utc = pytz.UTC
 
+def past(stock, result_number, date):
+    end_time = (datetime.datetime.utcnow() - timedelta(days=5)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    # print(end_time)
+    return "https://api.twitter.com/2/tweets/search/recent?query={topic}&max_results={results}&start_time={time}&end_time={endtime}".format(topic=stock, results = result_number, time = date, endtime= end_time)
 
-def create_url(stock, result_number):
-    return "https://api.twitter.com/2/tweets/search/recent?query={topic}&max_results={results}".format(topic=stock, results = result_number)
+def today(stock, result_number, date):
+    start_time = (datetime.datetime.utcnow()).strftime("%Y-%m-%dT%H:%M:%SZ")
+    # print(start_time)
+    return "https://api.twitter.com/2/tweets/search/recent?query={topic}&max_results={results}&start_time={time}&end_time={endtime}".format(topic=stock, results = result_number, time = date, endtime= start_time)
 
 
 def get_params():
@@ -21,7 +30,7 @@ def get_params():
     # possibly_sensitive, promoted_metrics, public_metrics, referenced_tweets,
     # source, text, and withheld
 
-    return {"tweet.fields": "lang"}
+    return {"tweet.fields": "lang,created_at"}
 
 def bearer_oauth(r):
     """
@@ -35,7 +44,7 @@ def bearer_oauth(r):
 
 def connect_to_endpoint(url, params):
     response = requests.request("GET", url, auth=bearer_oauth, params=params)
-    print(response.status_code)
+    # print(response.status_code)
     if response.status_code != 200:
         raise Exception(
             "Request returned an error: {} {}".format(
@@ -45,16 +54,37 @@ def connect_to_endpoint(url, params):
     return response.json()
 
 
-def main(query, result_number):
-    url = create_url(query, result_number)
+def main(query, result_number, date):
+    url_today = today(query, result_number, date)
+    url_past = past(query, result_number, date)
     params = get_params()
-    json_response = connect_to_endpoint(url, params)
+
+    json_response_today = connect_to_endpoint(url_today, params)
+    json_response_past = connect_to_endpoint(url_past, params)
+
     newlist = []
-    for x in json_response['data']:
+    testing = []
+    training = []
+
+    for x in json_response_today['data']:
         if x['lang'] == 'en':
-            newlist.append(x['text'])
-    print(json.dumps(newlist, indent=4, sort_keys=True))
+            testing.append(x['text'])
+ 
+    for x in json_response_past['data']:
+        if x['lang'] == 'en':
+            training.append(x['text'])
+            # training.append(x['text'])
+
+
+    newlist.append(training)
+    newlist.append(testing)
+
+    # print(training)
+    # print("--------------------")
+    # print(testing)
+
     return newlist
 
 if __name__ == "__main__":
-    main()
+    date = (datetime.datetime.utcnow() - timedelta(days=6)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    main("AAPL", 10, date)
