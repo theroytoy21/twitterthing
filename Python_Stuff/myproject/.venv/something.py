@@ -1,5 +1,5 @@
 from sklearn import *
-from sklearn import svm
+from sklearn import ensemble
 from sklearn.feature_extraction.text import TfidfVectorizer
 from textblob import TextBlob
 import requests
@@ -33,19 +33,11 @@ def twitter(query, result_number):
     return tweet_list
 
 def predictions(training, testing):
-    v = TfidfVectorizer()
-    # input_data = v.fit_transform(past_tweets)
-    input_data = v.fit_transform(training['tweets'])
-
-    # 0 = bad, 1 = good; average polarity goes here
-    # output_data = [0, 0, 1, 0, 1]
-    output_data = training['score']
-    model = svm.SVR()
-    model.fit(input_data, output_data)
-
-    x = v.transform(testing['tweets'])
-    # print(model.predict(x))
-    return model.predict(x).tolist()
+    print(training[0])
+    print(training[1])
+    model = ensemble.RandomForestRegressor()
+    model.fit([training[0]], [training[1]])
+    print(model.predict([testing]))
 
 def cleaning(data):
     no_url = re.sub(r'https\S+', ' ', data)
@@ -59,7 +51,6 @@ def cleaning(data):
     no_punc = [w for w in tweet_token if w.isalnum()]
     no_stopwords = [t for t in no_punc if t not in stop_words]
     clean_text = [lem.lemmatize(t) for t in no_stopwords]
-    print(clean_text)
     return " ".join(clean_text)
 
 def clean_tweets(tweets):
@@ -145,8 +136,6 @@ def format_to_csv(ticker_list):
         except:
             failed_tickers.append(ticker)
             print("Ticker has no data: ", ticker)
-    # print(list)
-    print(failed_tickers)
     newlist = pd.concat(list)
     newlist.to_csv("stock_file.csv", mode='a', index=False, header=False)
 
@@ -159,66 +148,81 @@ def format_data(stockCSV):
     # print(list)
     return list
 
-def prediction_data(list, score):
-    # input = [ticker name, sentiment, date]
-    # output = [price]
+def training_data(list, score, ticker, today):
     input = []
     output = []
     
     for x in list:
-        input.append([x[2], score, x[0]])
-        output.append(x[1])
+        if x[2] == ticker and int(x[0]) != int(today):
+            input.append([x[2], score, x[0]])
+            output.append(x[1])
     # print(input[1])
     # print(output[1])
 
     final_list = [input, output]
     return final_list
 
+def testing_data(list, score, ticker, today):
+    input = []
+    
+    for x in list:
+        if x[2] == ticker and int(x[0]) == int(today):
+            input.append([x[2], score])
+    # print(input[1])
+    # print(output[1])
+
+    return input
+
 
 date = (datetime.datetime.utcnow() - timedelta(days=6)).strftime("%Y-%m-%dT%H:%M:%SZ")
-print(date)
+date2 = datetime.datetime.today().strftime('%Y%m%d')
+
 ticker_list = save_sp500_tickers()
-ticker = "AAPL"
+print("---------------")
+print(ticker_list)
+print("---------------")
+
+ticker = input("Please select a valid ticker. ")
+
 training = []
 testing = []
 count = 0
+num_of_tweets = 100
 
-# for x in ticker:
+# due to Twitter limitations, we cannot search every tweet found in the list of tickers at the same time
+
+# for x in ticker_list:
 #     tweet_list = main(x, 10, date)
 #     print(x)
-    # for y in tweet_list:
-    #     if len(y) == 0:
-    #         print("Insufficient tweets")
-    #         break
-    #     if count == 0:
-    #         training = sentiment(x, 10, y)
-    #         count += 1
-    #     else:
-    #         testing = sentiment(x, 10, y)
+#     for y in tweet_list:
+#         if len(y) == 0:
+#             print("Insufficient tweets")
+#             break
+#         if count == 0:
+#             training = sentiment(x, 10, y)
+#             count += 1
+#         else:
+#             testing = sentiment(x, 10, y)
     
-tweet_list = main(ticker, 10, date)
+tweet_list = main(ticker, num_of_tweets, date)
 
 for y in tweet_list:
     if len(y) == 0:
         print("Insufficient tweets")
         break
     if count == 0:
-        training = sentiment(ticker, 10, y)
+        training = sentiment(ticker, num_of_tweets, y)
         count += 1
     else:
-        testing = sentiment(ticker, 10, y)
-
-# print("Training\n", training)
-# print("---------------")
-# print("Testing\n", testing)
-# print("---------------")
-
-# print(get_stock_info("AAPL"))
-# print(stock_info("AAPL"))
+        testing = sentiment(ticker, num_of_tweets, y)
 
 # format_to_csv(ticker_list)
-final_list = prediction_data(format_data("stock_file.csv"), training['average sentiment'])
-# print(final_list[0]) # input data
-# print("---------------")
-# print(final_list[1]) # output
+training_list = training_data(format_data("stock_file.csv"), training['average sentiment'], ticker, date2)
+print(training_list)
 
+print("---------------")
+
+testing_list = testing_data(format_data("stock_file.csv"), testing['average sentiment'], ticker, date2)
+print(testing_list)
+
+predictions(training_list, testing_list)
