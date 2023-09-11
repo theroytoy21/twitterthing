@@ -37,7 +37,7 @@ def predictions(training, testing):
     print(training[1])
     model = ensemble.RandomForestRegressor()
     model.fit([training[0]], [training[1]])
-    print(model.predict([testing]))
+    print(model.predict([testing])[0])
 
 def cleaning(data):
     no_url = re.sub(r'https\S+', ' ', data)
@@ -64,16 +64,19 @@ def search_tweets(query, result_number):
     tweets = clean_tweets(tweets)
     return tweets
 
-def sentiment(query, result_number, list):
+def sentiment(list):
     # tweets = search_tweets(query, result_number)
 
     pos = 0
     neutral = 0
     neg = 0
     scores = []
+    print("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+    # print(list)
 
     for tweet in list:
-        polarity = TextBlob(tweet).sentiment.polarity
+        # print(tweet)
+        polarity = TextBlob(tweet[0]).sentiment.polarity
       
         scores.append(polarity)
 
@@ -85,7 +88,7 @@ def sentiment(query, result_number, list):
             neutral += 1
 
     avg_sentiment = sum(scores) / len(scores)
-    return {'positive score': pos, 'negative score': neg, "neutral score": neutral, 'average sentiment': avg_sentiment, 'tweets': list, 'score': scores}
+    return {'positive score': pos, 'negative score': neg, "neutral score": neutral, 'average sentiment': avg_sentiment, 'tweets': list, 'score': scores, 'date': date}
 
 def get_stock_info(ticker):
     info = yf.download(tickers= ticker,
@@ -162,19 +165,27 @@ def training_data(list, score, ticker, today):
     final_list = [input, output]
     return final_list
 
+def ml_data(list, score, ticker, today):
+    input = []
+    output = []
+    for x in list:
+        if x[2] == ticker and int(x[0]) != int(today):
+            input.append(score)
+            output.append(x[1])
+    return [input, output]
+
 def testing_data(list, score, ticker, today):
     input = []
     
     for x in list:
         if x[2] == ticker and int(x[0]) == int(today):
-            input.append([x[2], score])
+            input.append(score)
     # print(input[1])
     # print(output[1])
 
     return input
 
-
-date = (datetime.datetime.utcnow() - timedelta(days=6)).strftime("%Y-%m-%dT%H:%M:%SZ")
+date = (datetime.datetime.utcnow() - timedelta(days=5)).strftime("%Y-%m-%dT%H:%M:%SZ")
 date2 = datetime.datetime.today().strftime('%Y%m%d')
 
 ticker_list = save_sp500_tickers()
@@ -187,7 +198,7 @@ ticker = input("Please select a valid ticker. ")
 training = []
 testing = []
 count = 0
-num_of_tweets = 100
+num_of_tweets = 10
 
 # due to Twitter limitations, we cannot search every tweet found in the list of tickers at the same time
 
@@ -203,26 +214,27 @@ num_of_tweets = 100
 #             count += 1
 #         else:
 #             testing = sentiment(x, 10, y)
-    
-tweet_list = main(ticker, num_of_tweets, date)
 
+tweet_list = main(ticker, num_of_tweets, date)
 for y in tweet_list:
     if len(y) == 0:
         print("Insufficient tweets")
         break
     if count == 0:
-        training = sentiment(ticker, num_of_tweets, y)
+        training.append(sentiment(y))
         count += 1
     else:
-        testing = sentiment(ticker, num_of_tweets, y)
+        testing = sentiment(y)
 
+print(training['average sentiment'], training['score'], training['date'])
+# print(testing)
 # format_to_csv(ticker_list)
-training_list = training_data(format_data("stock_file.csv"), training['average sentiment'], ticker, date2)
-print(training_list)
+training_list = ml_data(format_data("stock_file.csv"), training['average sentiment'], ticker, date2)
+#print(training_list)
 
-print("---------------")
+#print("---------------")
 
 testing_list = testing_data(format_data("stock_file.csv"), testing['average sentiment'], ticker, date2)
-print(testing_list)
+#print(testing_list)
 
 predictions(training_list, testing_list)
