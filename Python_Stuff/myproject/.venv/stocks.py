@@ -9,6 +9,13 @@ stocks = {'TSLA': 0, 'NVDA': 1,
           'NFLX': 16, 'SCHW': 17,
             'AI': 18, 'LLY': 19}
 
+# i = 0
+# dictionary = {}
+
+# for ticker in ticker_list:
+#   dictionary[ticker] = i
+#   i += 1
+
 def check_exist(name):
   stock = stocks[name.upper()]
   return stock

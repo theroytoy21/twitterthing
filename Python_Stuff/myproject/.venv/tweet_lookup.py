@@ -10,13 +10,14 @@ file_data = json.load(f)
 bearer_token = file_data['bearer_token']
 utc = pytz.UTC
 
-def past(stock, result_number, date):
-    end_time = (datetime.datetime.utcnow() - timedelta(days=5)).strftime("%Y-%m-%dT%H:%M:%SZ")
-    # print(end_time)
-    return "https://api.twitter.com/2/tweets/search/recent?query={topic}&max_results={results}&start_time={time}&end_time={endtime}".format(topic=stock, results = result_number, time = date, endtime= end_time)
+# def past(stock, result_number, date, x):
+#     day = 5 - x
+#     end_time = (datetime.datetime.utcnow() - timedelta(days=day)).strftime("%Y-%m-%dT%H:%M:%SZ")
+#     print(end_time)
+#     return "https://api.twitter.com/2/tweets/search/recent?query={topic}&max_results={results}&start_time={time}&end_time={endtime}".format(topic=stock, results = result_number, time = date, endtime= end_time)
 
 def today(stock, result_number, date):
-    start_time = (datetime.datetime.utcnow()).strftime("%Y-%m-%dT%H:%M:%SZ")
+    start_time = (datetime.datetime.utcnow() - timedelta(seconds=15)).strftime("%Y-%m-%dT%H:%M:%SZ")
     # print(start_time)
     return "https://api.twitter.com/2/tweets/search/recent?query={topic}&max_results={results}&start_time={time}&end_time={endtime}".format(topic=stock, results = result_number, time = date, endtime= start_time)
 
@@ -56,34 +57,28 @@ def connect_to_endpoint(url, params):
 
 def main(query, result_number, date):
     url_today = today(query, result_number, date)
-    url_past = past(query, result_number, date)
     params = get_params()
 
     json_response_today = connect_to_endpoint(url_today, params)
-    json_response_past = connect_to_endpoint(url_past, params)
 
-    newlist = []
     testing = []
-    training = []
 
     for x in json_response_today['data']:
         if x['lang'] == 'en':
-            testing.append(x['text'])
+            testing.append([x['text'], x['created_at']])
  
-    for x in json_response_past['data']:
-        if x['lang'] == 'en':
-            training.append(x['text'])
-            # training.append(x['text'])
+    # for x in json_response_past['data']:
+    #     if x['lang'] == 'en':
+    #         training.append([x['text'], x['created_at']])
+    #         training.append(x['text'])
 
 
-    newlist.append(training)
-    newlist.append(testing)
 
     # print(training)
     # print("--------------------")
     # print(testing)
 
-    return newlist
+    return testing
 
 if __name__ == "__main__":
     date = (datetime.datetime.utcnow() - timedelta(days=6)).strftime("%Y-%m-%dT%H:%M:%SZ")
